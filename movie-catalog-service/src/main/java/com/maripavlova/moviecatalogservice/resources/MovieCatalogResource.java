@@ -3,6 +3,7 @@ package com.maripavlova.moviecatalogservice.resources;
 import com.maripavlova.moviecatalogservice.models.CatalogItem;
 import com.maripavlova.moviecatalogservice.models.Movie;
 import com.maripavlova.moviecatalogservice.models.Rating;
+import com.maripavlova.moviecatalogservice.models.UserRating;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,29 +30,24 @@ public class MovieCatalogResource {
 
 
         //get all rated movies for userId from rating server
-        List<Rating> ratings = Arrays.asList(
-            new Rating("movieid1", 4),
-            new Rating("movieid2", 5),
-            new Rating("movieid3", 6)
-        );
+        UserRating ratings = restTemplate.getForObject("http://localhost:8083/ratingsdata/users/" + userId, UserRating.class);
 
         //for each rated movie of userid call movie info service to get details of movies
-        return ratings.stream()
+        return ratings.getUserRating().stream()
                         .map(rating -> {
-                           // Movie movie = restTemplate.getForObject("http://localhost:8082/movies/" + rating.getMovieId(), Movie.class);
-
-                            Movie movie = webClient.build()
-                                    .get()
-                                    .uri("http://localhost:8082/movies/" + rating.getMovieId())
-                                    .retrieve()
-                                    .bodyToMono(Movie.class)
-                                    .block();
-
+                            //for each rated movie of userid call movie info service to get details of movies
+                            Movie movie = restTemplate.getForObject("http://localhost:8082/movies/" + rating.getMovieId(), Movie.class);
+                            //put ratings and movies details together
                             return new CatalogItem(movie.getName(), "description of movie", rating.getRating());
                         })
                         .collect(Collectors.toList());
-
-        //put ratings and movies details together
-
     }
 }
+
+
+//                            Movie movie = webClient.build()
+//                                    .get()
+//                                    .uri("http://localhost:8082/movies/" + rating.getMovieId())
+//                                    .retrieve()
+//                                    .bodyToMono(Movie.class)
+//                                    .block();
