@@ -5,6 +5,7 @@ import com.maripavlova.moviecatalogservice.models.Movie;
 import com.maripavlova.moviecatalogservice.models.Rating;
 import com.maripavlova.moviecatalogservice.models.UserRating;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,18 +26,21 @@ public class MovieCatalogResource {
     @Autowired
     private WebClient.Builder webClient;
 
+    @Autowired
+    private DiscoveryClient discoveryClient;
+
     @RequestMapping("/{userId}")
     public List<CatalogItem> getCatalog(@PathVariable("userId") String userId) {
 
 
         //get all rated movies for userId from rating server
-        UserRating ratings = restTemplate.getForObject("http://localhost:8083/ratingsdata/users/" + userId, UserRating.class);
+        UserRating ratings = restTemplate.getForObject("http://ratings-data-service/ratingsdata/users/" + userId, UserRating.class);
 
         //for each rated movie of userid call movie info service to get details of movies
         return ratings.getUserRating().stream()
                         .map(rating -> {
                             //for each rated movie of userid call movie info service to get details of movies
-                            Movie movie = restTemplate.getForObject("http://localhost:8082/movies/" + rating.getMovieId(), Movie.class);
+                            Movie movie = restTemplate.getForObject("http://movie-info-service/movies/" + rating.getMovieId(), Movie.class);
                             //put ratings and movies details together
                             return new CatalogItem(movie.getName(), "description of movie", rating.getRating());
                         })
