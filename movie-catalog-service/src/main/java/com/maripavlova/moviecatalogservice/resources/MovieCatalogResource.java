@@ -4,6 +4,7 @@ import com.maripavlova.moviecatalogservice.models.CatalogItem;
 import com.maripavlova.moviecatalogservice.models.Movie;
 import com.maripavlova.moviecatalogservice.models.Rating;
 import com.maripavlova.moviecatalogservice.models.UserRating;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +31,8 @@ public class MovieCatalogResource {
     private DiscoveryClient discoveryClient;
 
     @RequestMapping("/{userId}")
+    @HystrixCommand(fallbackMethod = "getFallbackCatalog")
+//    @CircuitBreaker(name = BACKEND, fallbackMethod = "fallback")
     public List<CatalogItem> getCatalog(@PathVariable("userId") String userId) {
 
 
@@ -45,6 +48,11 @@ public class MovieCatalogResource {
                             return new CatalogItem(movie.getName(), "description of movie", rating.getRating());
                         })
                         .collect(Collectors.toList());
+    }
+
+    public List<CatalogItem> getFallbackCatalog(@PathVariable("userId") String userId) {
+        System.out.println("====================================" + "I am in fallback method");
+        return Arrays.asList(new CatalogItem("default_name", "default_description", 0));
     }
 }
 
