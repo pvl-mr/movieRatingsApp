@@ -31,24 +31,46 @@ public class MovieCatalogResource {
     private DiscoveryClient discoveryClient;
 
     @RequestMapping("/{userId}")
-    @HystrixCommand(fallbackMethod = "getFallbackCatalog")
 //    @CircuitBreaker(name = BACKEND, fallbackMethod = "fallback")
     public List<CatalogItem> getCatalog(@PathVariable("userId") String userId) {
 
 
         //get all rated movies for userId from rating server
-        UserRating ratings = restTemplate.getForObject("http://ratings-data-service/ratingsdata/users/" + userId, UserRating.class);
+        UserRating ratings = getUserRating(userId);
 
         //for each rated movie of userid call movie info service to get details of movies
         return ratings.getUserRating().stream()
                         .map(rating -> {
                             //for each rated movie of userid call movie info service to get details of movies
-                            Movie movie = restTemplate.getForObject("http://movie-info-service/movies/" + rating.getMovieId(), Movie.class);
-                            //put ratings and movies details together
-                            return new CatalogItem(movie.getName(), "description of movie", rating.getRating());
+                            return getCatalogItem(rating);
                         })
                         .collect(Collectors.toList());
     }
+
+    @HystrixCommand(fallbackMethod = "getFallbackCatalogItem")
+    private CatalogItem getCatalogItem(Rating rating) {
+        Movie movie = restTemplate.getForObject("http://movie-info-service/movies/" + rating.getMovieId(), Movie.class);
+        //put ratings and movies details together
+        return new CatalogItem(movie.getName(), "description of movie", rating.getRating());
+    }
+
+    private CatalogItem getFallbackCatalogItem(Rating rating) {
+        return new CatalogItem("Movie name not found", "Movie description not found", rating.getRating());
+    }
+
+    @HystrixCommand(fallbackMethod = "getFallbackUserRating")
+    private UserRating getUserRating(String userId) {
+        return restTemplate.getForObject("http://ratings-data-service/ratingsdata/users/" + userId, UserRating.class);
+    }
+
+    private UserRating getFallbackUserRating(String userId) {
+        UserRating userRating = new UserRating();
+        userRating.setUserId(userId);
+        userRating.setUserRating(Arrays.asList(new Rating("0", 0)));
+        return userRating;
+    }
+
+
 
     public List<CatalogItem> getFallbackCatalog(@PathVariable("userId") String userId) {
         System.out.println("====================================" + "I am in fallback method");
